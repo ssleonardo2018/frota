@@ -157,7 +157,7 @@
 
             try {
                 // 2. BUSCAR DADOS DE KM
-                const resKm = await fetch('http://localhost:3000/km');
+                const resKm =  await supabaseClient;
                 if (resKm.ok) {
                     const registrosKm = await resKm.json();
                     
@@ -170,7 +170,7 @@
                 }
 
                 // 3. BUSCAR DADOS DE ABASTECIMENTO
-                const resAbast = await fetch('http://localhost:3000/abastecimento');
+                const resAbast = await supabaseClient;
                 if (resAbast.ok) {
                     const registrosAbast = await resAbast.json();
                     
