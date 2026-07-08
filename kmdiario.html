@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de KM Diário</title>
+       <!-- 1º Carrega a biblioteca oficial do Supabase via internet -->
     <script src="https://jsdelivr.net"></script>
+    
+    <!-- 2º Carrega as suas chaves de acesso URL e KEY (Forçando a quebra de cache com ?v=1) -->
+    <script src="config.js?v=1"></script>
+    
+    <!-- 3º Carrega a lógica da sua página (Forçando a quebra de cache com ?v=1) -->
+    <script src="script.js?v=1"></script>
+    
 
     <link rel="stylesheet" href="style.css">
 </head>
@@ -115,6 +123,5 @@
         </table>
     </div>
 
-    <script src="script.js"></script>
 </body>
 </html>
