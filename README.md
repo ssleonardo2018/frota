@@ -1,5 +1,7 @@
 # Controle de KM — Guia rápido
 
+https://ssleonardo2018.github.io/frota/
+
 Aplicação web responsiva (funciona em celular, tablet e computador) para
 registrar KM diário e abastecimentos, conectada direto ao Supabase.
 
