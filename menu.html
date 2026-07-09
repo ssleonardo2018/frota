@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Controle de KM - Menu</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topo">🚗 Controle de KM</header>
+
+<main>
+  <div id="mensagem" class="mensagem"></div>
+
+  <div class="resumo-grid">
+    <div class="card-resumo">
+      <div class="rotulo">KM total no mês</div>
+      <div class="valor" id="kmTotalMes">-- <small>km</small></div>
+    </div>
+    <div class="card-resumo">
+      <div class="rotulo">Litros abastecidos no mês</div>
+      <div class="valor" id="litrosTotalMes">-- <small>L</small></div>
+    </div>
+    <div class="card-resumo">
+      <div class="rotulo">Abastecimentos no mês</div>
+      <div class="valor" id="qtdAbastecimentos">--</div>
+    </div>
+  </div>
+
+  <div class="menu-botoes">
+    <a href="kmdiario.html" class="btn btn-primario">📋 KM Diário</a>
+    <a href="abastecimento.html" class="btn btn-primario">⛽ Abastecimento</a>
+    <a href="configuracoes.html" class="btn btn-secundario">⚙️ Configurações</a>
+    <button class="btn btn-sair" id="btnSair">🚪 Sair</button>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+const cliente = exigirConfiguracaoSupabase();
+
+function mostrarMensagem(texto, tipo) {
+  const el = document.getElementById('mensagem');
+  el.textContent = texto;
+  el.className = `mensagem ${tipo}`;
+}
+
+async function carregarResumo() {
+  if (!cliente) return;
+  const inicio = primeiroDiaMesAtual();
+  const fim = ultimoDiaMesAtual();
+
+  // KM total do mês (soma de km_total na tabela kmdiario)
+  try {
+    const { data: registrosKm, error: erroKm } = await cliente
+      .from('kmdiario')
+      .select('km_total')
+      .gte('data', inicio)
+      .lte('data', fim);
+
+    if (erroKm) throw erroKm;
+    const somaKm = (registrosKm || []).reduce((acc, r) => acc + Number(r.km_total || 0), 0);
+    document.getElementById('kmTotalMes').innerHTML = `${formatarNumero(somaKm, 0)} <small>km</small>`;
+  } catch (e) {
+    console.error(e);
+    document.getElementById('kmTotalMes').innerHTML = 'erro';
+  }
+
+  // Litros e quantidade de abastecimentos do mês
+  try {
+    const { data: registrosAbast, error: erroAbast } = await cliente
+      .from('abastecimento')
+      .select('litros')
+      .gte('data', inicio)
+      .lte('data', fim);
+
+    if (erroAbast) throw erroAbast;
+    const somaLitros = (registrosAbast || []).reduce((acc, r) => acc + Number(r.litros || 0), 0);
+    document.getElementById('litrosTotalMes').innerHTML = `${formatarNumero(somaLitros, 1)} <small>L</small>`;
+    document.getElementById('qtdAbastecimentos').textContent = (registrosAbast || []).length;
+  } catch (e) {
+    console.error(e);
+    document.getElementById('litrosTotalMes').innerHTML = 'erro';
+    document.getElementById('qtdAbastecimentos').textContent = 'erro';
+  }
+}
+
+document.getElementById('btnSair').addEventListener('click', () => {
+  if (confirm('Deseja sair e desconectar deste Supabase configurado neste dispositivo?')) {
+    localStorage.removeItem('supabase_url');
+    localStorage.removeItem('supabase_key');
+    window.location.href = 'configuracoes.html';
+  }
+});
+
+if (cliente) carregarResumo();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Configurações</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topo">⚙️ Configurações</header>
+
+<main>
+  <div id="mensagem" class="mensagem"></div>
+
+  <div class="formulario">
+    <p style="font-size:0.9rem;color:var(--texto-suave);margin-top:0;">
+      Informe a URL e a chave <strong>anon (public)</strong> do seu projeto Supabase.
+      Você encontra esses dados em: <em>Project Settings → API</em>.
+    </p>
+
+    <div class="campo">
+      <label for="supabaseUrl">Supabase URL</label>
+      <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+    </div>
+
+    <div class="campo">
+      <label for="supabaseKey">Supabase Anon Key</label>
+      <input type="text" id="supabaseKey" placeholder="eyJhbGciOi...">
+    </div>
+
+    <div class="acoes-form">
+      <button type="button" class="btn btn-sucesso" id="btnSalvar">💾 Salvar conexão</button>
+      <a href="menu.html" class="btn btn-neutro">🏠 Menu</a>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+const campoUrl = document.getElementById('supabaseUrl');
+const campoKey = document.getElementById('supabaseKey');
+
+const atuais = getSupabaseCredenciais();
+campoUrl.value = atuais.url;
+campoKey.value = atuais.key;
+
+function mostrarMensagem(texto, tipo) {
+  const el = document.getElementById('mensagem');
+  el.textContent = texto;
+  el.className = `mensagem ${tipo}`;
+}
+
+document.getElementById('btnSalvar').addEventListener('click', () => {
+  const url = campoUrl.value.trim();
+  const key = campoKey.value.trim();
+
+  if (!url || !key) {
+    mostrarMensagem('Preencha a URL e a chave do Supabase.', 'erro');
+    return;
+  }
+
+  localStorage.setItem('supabase_url', url);
+  localStorage.setItem('supabase_key', key);
+  mostrarMensagem('Conexão salva com sucesso!', 'sucesso');
+  setTimeout(() => { window.location.href = 'menu.html'; }, 1000);
+});
+</script>
+
+</body>
+</html>

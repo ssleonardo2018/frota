@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Abastecimento</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topo">⛽ Abastecimento</header>
+
+<main>
+  <div id="mensagem" class="mensagem"></div>
+
+  <form class="formulario" id="formAbast">
+    <input type="hidden" id="registroId">
+    <input type="hidden" id="imagem1Url">
+    <input type="hidden" id="imagem2Url">
+    <input type="hidden" id="imagem3Url">
+    <input type="hidden" id="imagem4Url">
+
+    <div class="linha-dupla">
+      <div class="campo">
+        <label for="data">Data</label>
+        <input type="date" id="data" required>
+      </div>
+      <div class="campo">
+        <label for="motorista">Motorista</label>
+        <input type="text" id="motorista" placeholder="Nome do motorista" required>
+      </div>
+    </div>
+
+    <div class="linha-dupla">
+      <div class="campo">
+        <label for="placa">Placa</label>
+        <input type="text" id="placa" placeholder="ABC1D23" maxlength="8" required style="text-transform:uppercase">
+      </div>
+      <div class="campo">
+        <label for="carro">Carro (nº do carro)</label>
+        <input type="text" id="carro" placeholder="Ex: 12" required>
+      </div>
+    </div>
+
+    <div class="linha-dupla">
+      <div class="campo">
+        <label for="diesel">Diesel (litros)</label>
+        <input type="number" id="diesel" step="0.01" min="0" required>
+      </div>
+      <div class="campo">
+        <label for="arla">ARLA (litros, se abastecido)</label>
+        <input type="number" id="arla" step="0.01" min="0" placeholder="Opcional">
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Anexar imagens (até 4)</label>
+      <div class="grid-imagens">
+        <div class="campo-imagem">
+          <label for="imagem1">Imagem 1</label>
+          <div class="caixa-preview" id="preview1"><span class="placeholder">📷</span></div>
+          <input type="file" id="imagem1" accept="image/*" capture="environment">
+        </div>
+        <div class="campo-imagem">
+          <label for="imagem2">Imagem 2</label>
+          <div class="caixa-preview" id="preview2"><span class="placeholder">📷</span></div>
+          <input type="file" id="imagem2" accept="image/*" capture="environment">
+        </div>
+        <div class="campo-imagem">
+          <label for="imagem3">Imagem 3</label>
+          <div class="caixa-preview" id="preview3"><span class="placeholder">📷</span></div>
+          <input type="file" id="imagem3" accept="image/*" capture="environment">
+        </div>
+        <div class="campo-imagem">
+          <label for="imagem4">Imagem 4</label>
+          <div class="caixa-preview" id="preview4"><span class="placeholder">📷</span></div>
+          <input type="file" id="imagem4" accept="image/*" capture="environment">
+        </div>
+      </div>
+    </div>
+
+    <div class="acoes-form">
+      <button type="submit" class="btn btn-sucesso" id="btnSalvar">💾 Salvar</button>
+      <button type="button" class="btn btn-secundario" id="btnImprimir">🖨️ Imprimir</button>
+      <a href="menu.html" class="btn btn-neutro">🏠 Menu</a>
+    </div>
+  </form>
+
+  <div class="lista-titulo">Registros do mês atual</div>
+  <div id="listaRegistros">
+    <div class="carregando">Carregando registros...</div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+const NOME_BUCKET = 'abastecimento-imagens';
+
+const cliente = exigirConfiguracaoSupabase();
+
+const form = document.getElementById('formAbast');
+const campoData = document.getElementById('data');
+const campoMotorista = document.getElementById('motorista');
+const campoPlaca = document.getElementById('placa');
+const campoCarro = document.getElementById('carro');
+const campoDiesel = document.getElementById('diesel');
+const campoArla = document.getElementById('arla');
+const campoId = document.getElementById('registroId');
+const btnSalvar = document.getElementById('btnSalvar');
+
+const camposImagem = [1, 2, 3, 4].map(n => ({
+  input: document.getElementById(`imagem${n}`),
+  preview: document.getElementById(`preview${n}`),
+  hiddenUrl: document.getElementById(`imagem${n}Url`)
+}));
+
+campoData.value = new Date().toISOString().slice(0, 10);
+
+// Pré-visualização ao escolher um arquivo
+camposImagem.forEach(({ input, preview }) => {
+  input.addEventListener('change', () => {
+    const arquivo = input.files[0];
+    if (!arquivo) return;
+    const leitor = new FileReader();
+    leitor.onload = e => {
+      preview.innerHTML = `<img src="${e.target.result}" alt="Pré-visualização">`;
+    };
+    leitor.readAsDataURL(arquivo);
+  });
+});
+
+function mostrarMensagem(texto, tipo) {
+  const el = document.getElementById('mensagem');
+  el.textContent = texto;
+  el.className = `mensagem ${tipo}`;
+  setTimeout(() => { el.className = 'mensagem'; }, 4000);
+}
+
+function limparFormulario() {
+  form.reset();
+  campoId.value = '';
+  campoData.value = new Date().toISOString().slice(0, 10);
+  camposImagem.forEach(({ preview, hiddenUrl }) => {
+    preview.innerHTML = '<span class="placeholder">📷</span>';
+    hiddenUrl.value = '';
+  });
+  btnSalvar.textContent = '💾 Salvar';
+}
+
+// Envia um arquivo para o Storage e devolve a URL pública
+async function enviarImagem(arquivo) {
+  const extensao = arquivo.name.split('.').pop();
+  const nomeArquivo = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extensao}`;
+
+  const { error: erroUpload } = await cliente
+    .storage
+    .from(NOME_BUCKET)
+    .upload(nomeArquivo, arquivo, { cacheControl: '3600', upsert: false });
+
+  if (erroUpload) throw erroUpload;
+
+  const { data } = cliente.storage.from(NOME_BUCKET).getPublicUrl(nomeArquivo);
+  return data.publicUrl;
+}
+
+async function salvarRegistro(evento) {
+  evento.preventDefault();
+  if (!cliente) return;
+
+  btnSalvar.disabled = true;
+  btnSalvar.textContent = 'Salvando...';
+
+  try {
+    // Faz upload apenas das imagens novas selecionadas; mantém as demais como já estavam
+    const urlsImagens = [];
+    for (const { input, hiddenUrl } of camposImagem) {
+      if (input.files && input.files[0]) {
+        const url = await enviarImagem(input.files[0]);
+        urlsImagens.push(url);
+      } else {
+        urlsImagens.push(hiddenUrl.value || null);
+      }
+    }
+
+    const registro = {
+      data: campoData.value,
+      motorista: campoMotorista.value.trim(),
+      placa: campoPlaca.value.toUpperCase().trim(),
+      carro: campoCarro.value.trim(),
+      diesel: parseFloat(campoDiesel.value),
+      arla: campoArla.value ? parseFloat(campoArla.value) : null,
+      imagem1_url: urlsImagens[0],
+      imagem2_url: urlsImagens[1],
+      imagem3_url: urlsImagens[2],
+      imagem4_url: urlsImagens[3]
+    };
+
+    let resultado;
+    if (campoId.value) {
+      resultado = await cliente.from('abastecimento').update(registro).eq('id', campoId.value);
+    } else {
+      resultado = await cliente.from('abastecimento').insert([registro]);
+    }
+    if (resultado.error) throw resultado.error;
+
+    mostrarMensagem('Registro salvo com sucesso!', 'sucesso');
+    limparFormulario();
+    carregarLista();
+  } catch (e) {
+    console.error(e);
+    mostrarMensagem('Erro ao salvar: ' + e.message, 'erro');
+  } finally {
+    btnSalvar.disabled = false;
+    btnSalvar.textContent = campoId.value ? '💾 Atualizar' : '💾 Salvar';
+  }
+}
+
+async function carregarLista() {
+  if (!cliente) return;
+  const inicio = primeiroDiaMesAtual();
+  const fim = ultimoDiaMesAtual();
+  const container = document.getElementById('listaRegistros');
+  container.innerHTML = '<div class="carregando">Carregando registros...</div>';
+
+  try {
+    const { data, error } = await cliente
+      .from('abastecimento')
+      .select('*')
+      .gte('data', inicio)
+      .lte('data', fim)
+      .order('data', { ascending: false });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="vazio">Nenhum registro neste mês ainda.</div>';
+      return;
+    }
+
+    container.innerHTML = data.map(r => {
+      const imagens = [r.imagem1_url, r.imagem2_url, r.imagem3_url, r.imagem4_url].filter(Boolean);
+      const miniaturas = imagens.length
+        ? `<div class="miniaturas-lista">${imagens.map(url => `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="Imagem do abastecimento"></a>`).join('')}</div>`
+        : '';
+
+      return `
+      <div class="lista-registro">
+        <div class="linha-campo"><span class="rotulo-campo">Data</span><span>${formatarDataBR(r.data)}</span></div>
+        <div class="linha-campo"><span class="rotulo-campo">Motorista</span><span>${r.motorista || '-'}</span></div>
+        <div class="linha-campo"><span class="rotulo-campo">Placa</span><span>${r.placa || '-'}</span></div>
+        <div class="linha-campo"><span class="rotulo-campo">Carro</span><span>${r.carro || '-'}</span></div>
+        <div class="linha-campo"><span class="rotulo-campo">Diesel</span><span>${formatarNumero(r.diesel, 2)} L</span></div>
+        <div class="linha-campo"><span class="rotulo-campo">ARLA</span><span>${r.arla ? formatarNumero(r.arla, 2) + ' L' : '-'}</span></div>
+        ${miniaturas}
+        <div class="acoes-registro">
+          <button class="btn-editar" onclick="editarRegistro('${r.id}')">✏️ Editar</button>
+          <button class="btn-excluir" onclick="excluirRegistro('${r.id}')">🗑️ Excluir</button>
+        </div>
+      </div>
+    `;
+    }).join('');
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = '<div class="vazio">Erro ao carregar registros.</div>';
+  }
+}
+
+async function editarRegistro(id) {
+  if (!cliente) return;
+  try {
+    const { data, error } = await cliente.from('abastecimento').select('*').eq('id', id).single();
+    if (error) throw error;
+
+    campoId.value = data.id;
+    campoData.value = data.data;
+    campoMotorista.value = data.motorista || '';
+    campoPlaca.value = data.placa || '';
+    campoCarro.value = data.carro || '';
+    campoDiesel.value = data.diesel;
+    campoArla.value = data.arla || '';
+
+    const urls = [data.imagem1_url, data.imagem2_url, data.imagem3_url, data.imagem4_url];
+    camposImagem.forEach(({ preview, hiddenUrl, input }, i) => {
+      input.value = '';
+      hiddenUrl.value = urls[i] || '';
+      preview.innerHTML = urls[i]
+        ? `<img src="${urls[i]}" alt="Imagem atual">`
+        : '<span class="placeholder">📷</span>';
+    });
+
+    btnSalvar.textContent = '💾 Atualizar';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) {
+    console.error(e);
+    mostrarMensagem('Erro ao carregar registro para edição.', 'erro');
+  }
+}
+
+async function excluirRegistro(id) {
+  if (!cliente) return;
+  if (!confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) return;
+
+  try {
+    const { error } = await cliente.from('abastecimento').delete().eq('id', id);
+    if (error) throw error;
+    mostrarMensagem('Registro excluído.', 'sucesso');
+    carregarLista();
+  } catch (e) {
+    console.error(e);
+    mostrarMensagem('Erro ao excluir: ' + e.message, 'erro');
+  }
+}
+
+document.getElementById('btnImprimir').addEventListener('click', () => window.print());
+form.addEventListener('submit', salvarRegistro);
+
+if (cliente) carregarLista();
+</script>
+
+</body>
+</html>

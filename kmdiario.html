@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>KM Diário</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topo">📋 KM Diário</header>
+
+<main>
+  <div id="mensagem" class="mensagem"></div>
+
+  <form class="formulario" id="formKm">
+    <input type="hidden" id="registroId">
+
+    <div class="linha-dupla">
+      <div class="campo">
+        <label for="data">Data</label>
+        <input type="date" id="data" required>
+      </div>
+      <div class="campo">
+        <label for="placa">Placa</label>
+        <input type="text" id="placa" placeholder="ABC1D23" maxlength="8" required style="text-transform:uppercase">
+      </div>
+    </div>
+
+    <div class="linha-dupla">
+      <div class="campo">
+        <label for="kmInicio">KM Início</label>
+        <input type="number" id="kmInicio" step="0.1" min="0" required>
+      </div>
+      <div class="campo">
+        <label for="kmFinal">KM Final</label>
+        <input type="number" id="kmFinal" step="0.1" min="0" required>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="kmTotal">KM Total (calculado automaticamente)</label>
+      <input type="text" id="kmTotal" readonly value="0">
+    </div>
+
+    <div class="campo">
+      <label for="rota">Rota</label>
+      <input type="text" id="rota" placeholder="Ex: Origem - Destino">
+    </div>
+
+    <div class="campo">
+      <label for="observacoes">Observações</label>
+      <textarea id="observacoes" rows="3" placeholder="Observações (opcional)"></textarea>
+    </div>
+
+    <div class="acoes-form">
+      <button type="submit" class="btn btn-sucesso" id="btnSalvar">💾 Salvar</button>
+      <button type="button" class="btn btn-secundario" id="btnImprimir">🖨️ Imprimir</button>
+      <a href="menu.html" class="btn btn-neutro">🏠 Menu</a>
+    </div>
+  </form>
+
+  <div class="lista-titulo">Registros do mês atual</div>
+  <div id="listaRegistros">
+    <div class="carregando">Carregando registros...</div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+const cliente = exigirConfiguracaoSupabase();
+
+const form = document.getElementById('formKm');
+const campoData = document.getElementById('data');
+const campoPlaca = document.getElementById('placa');
+const campoKmInicio = document.getElementById('kmInicio');
+const campoKmFinal = document.getElementById('kmFinal');
+const campoKmTotal = document.getElementById('kmTotal');
+const campoRota = document.getElementById('rota');
+const campoObs = document.getElementById('observacoes');
+const campoId = document.getElementById('registroId');
+const btnSalvar = document.getElementById('btnSalvar');
+
+// Data de hoje como padrão
+campoData.value = new Date().toISOString().slice(0, 10);
+
+function calcularKmTotal() {
+  const ini = parseFloat(campoKmInicio.value) || 0;
+  const fim = parseFloat(campoKmFinal.value) || 0;
+  const total = fim - ini;
+  campoKmTotal.value = total > 0 ? total.toFixed(1) : '0';
+}
+campoKmInicio.addEventListener('input', calcularKmTotal);
+campoKmFinal.addEventListener('input', calcularKmTotal);
+
+function mostrarMensagem(texto, tipo) {
+  const el = document.getElementById('mensagem');
+  el.textContent = texto;
+  el.className = `mensagem ${tipo}`;
+  setTimeout(() => { el.className = 'mensagem'; }, 4000);
+}
+
+function limparFormulario() {
+  form.reset();
+  campoId.value = '';
+  campoData.value = new Date().toISOString().slice(0, 10);
+  campoKmTotal.value = '0';
+  btnSalvar.textContent = '💾 Salvar';
+}
+
+async function salvarRegistro(evento) {
+  evento.preventDefault();
+  if (!cliente) return;
+
+  const kmInicio = parseFloat(campoKmInicio.value);
+  const kmFinal = parseFloat(campoKmFinal.value);
+
+  if (kmFinal < kmInicio) {
+    mostrarMensagem('O KM final não pode ser menor que o KM início.', 'erro');
+    return;
+  }
+
+  const registro = {
+    data: campoData.value,
+    km_inicio: kmInicio,
+    km_final: kmFinal,
+    km_total: kmFinal - kmInicio,
+    placa: campoPlaca.value.toUpperCase().trim(),
+    rota: campoRota.value.trim(),
+    observacoes: campoObs.value.trim()
+  };
+
+  btnSalvar.disabled = true;
+  try {
+    let resultado;
+    if (campoId.value) {
+      resultado = await cliente.from('kmdiario').update(registro).eq('id', campoId.value);
+    } else {
+      resultado = await cliente.from('kmdiario').insert([registro]);
+    }
+    if (resultado.error) throw resultado.error;
+
+    mostrarMensagem('Registro salvo com sucesso!', 'sucesso');
+    limparFormulario();
+    carregarLista();
+  } catch (e) {
+    console.error(e);
+    mostrarMensagem('Erro ao salvar: ' + e.message, 'erro');
+  } finally {
+    btnSalvar.disabled = false;
+  }
+}
+
+async function carregarLista() {
+  if (!cliente) return;
+  const inicio = primeiroDiaMesAtual();
+  const fim = ultimoDiaMesAtual();
+  const container = document.getElementById('listaRegistros');
+  container.innerHTML = '<div class="carregando">Carregando registros...</div>';
+
+  try {
+    const { data, error } = await cliente
+      .from('kmdiario')
+      .select('*')
+      .gte('data', inicio)
+      .lte('data', fim)
+      .order('data', { ascending: false });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="vazio">Nenhum registro neste mês ainda.</div>';
+      return;
+    }
+
+    container.innerHTML = data.map(r => `
+      <div class="lista-registro">
+        <div class="linha-campo"><span class="rotulo-campo">Data</span><span>${formatarDataBR(r.data)}</span></div>
+        <div class="linha-campo"><span class="rotulo-campo">KM Total</span><span>${formatarNumero(r.km_total, 1)} km</span></div>
+        <div class="linha-campo"><span class="rotulo-campo">Placa</span><span>${r.placa || '-'}</span></div>
+        <div class="linha-campo"><span class="rotulo-campo">Rota</span><span>${r.rota || '-'}</span></div>
+        <div class="linha-campo"><span class="rotulo-campo">Observações</span><span>${r.observacoes || '-'}</span></div>
+        <div class="acoes-registro">
+          <button class="btn-editar" onclick="editarRegistro('${r.id}')">✏️ Editar</button>
+          <button class="btn-excluir" onclick="excluirRegistro('${r.id}')">🗑️ Excluir</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = '<div class="vazio">Erro ao carregar registros.</div>';
+  }
+}
+
+async function editarRegistro(id) {
+  if (!cliente) return;
+  try {
+    const { data, error } = await cliente.from('kmdiario').select('*').eq('id', id).single();
+    if (error) throw error;
+
+    campoId.value = data.id;
+    campoData.value = data.data;
+    campoPlaca.value = data.placa;
+    campoKmInicio.value = data.km_inicio;
+    campoKmFinal.value = data.km_final;
+    campoKmTotal.value = data.km_total;
+    campoRota.value = data.rota || '';
+    campoObs.value = data.observacoes || '';
+    btnSalvar.textContent = '💾 Atualizar';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) {
+    console.error(e);
+    mostrarMensagem('Erro ao carregar registro para edição.', 'erro');
+  }
+}
+
+async function excluirRegistro(id) {
+  if (!cliente) return;
+  if (!confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) return;
+
+  try {
+    const { error } = await cliente.from('kmdiario').delete().eq('id', id);
+    if (error) throw error;
+    mostrarMensagem('Registro excluído.', 'sucesso');
+    carregarLista();
+  } catch (e) {
+    console.error(e);
+    mostrarMensagem('Erro ao excluir: ' + e.message, 'erro');
+  }
+}
+
+document.getElementById('btnImprimir').addEventListener('click', () => window.print());
+form.addEventListener('submit', salvarRegistro);
+
+if (cliente) carregarLista();
+</script>
+
+</body>
+</html>
