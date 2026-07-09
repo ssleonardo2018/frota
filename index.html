@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frota - Controle de Km e Abastecimento</title>
+    <!-- Tailwind CSS para design responsivo e moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* ==========================================================================
+        Configurações Globais e Variáveis de Cor
+        ========================================================================== */
+        :root {
+        --bg-main: #0f172a;       /* slate-900 */
+        --bg-card: #1e293b80;     /* slate-800 com opacidade */
+        --bg-input: #0f172a;      /* slate-900 */
+        --text-main: #ffffff;     /* white */
+        --text-muted: #94a3b8;    /* slate-400 */
+        --brand-primary: #f59e0b; /* amber-500 */
+        --brand-secondary: #ea580c; /* orange-600 */
+        --border-color: #33415580; /* slate-700 com opacidade */
+        }
+
+        * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        }
+
+        body {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        -webkit-font-smoothing: antialiased;
+        }
+
+        /* ==========================================================================
+        Layout & Alinhamento (Responsivo)
+        ========================================================================== */
+        .container {
+        width: 100%;
+        max-width: 1152px;
+        margin: 0 auto;
+        padding: 0 24px;
+        }
+
+        header {
+        padding-top: 16px;
+        padding-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        }
+
+        main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 48px;
+        padding-top: 48px;
+        padding-bottom: 48px;
+        margin: auto 0;
+        }
+
+        @media (min-width: 1024px) {
+        main {
+            flex-direction: row;
+            gap: 48px;
+        }
+        }
+
+        /* ==========================================================================
+        Componentes e Tipografia
+        ========================================================================== */
+        .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        }
+
+        .logo-text {
+        font-weight: 700;
+        font-size: 20px;
+        letter-spacing: -0.5px;
+        background: linear-gradient(to right, #fbbf24, #f97316);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        }
+
+        .badge {
+        display: inline-block;
+        background-color: rgba(245, 158, 11, 0.1);
+        color: #fbbf24;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        margin-bottom: 24px;
+        }
+
+        h1 {
+        font-size: 36px;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -1px;
+        margin-bottom: 24px;
+        }
+
+        @media (min-width: 640px) {
+        h1 { font-size: 48px; }
+        }
+
+        .gradient-text {
+        background: linear-gradient(to right, #fbbf24, #f97316);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        }
+
+        .description {
+        font-size: 16px;
+        color: var(--text-muted);
+        max-width: 512px;
+        line-height: 1.6;
+        margin-bottom: 32px;
+        }
+
+        @media (min-width: 640px) {
+        .description { font-size: 18px; }
+        }
+
+        /* ==========================================================================
+        Botões e Interações
+        ========================================================================== */
+        .btn {
+        font-family: inherit;
+        cursor: pointer;
+        border: none;
+        transition: all 0.3s ease;
+        }
+
+        .btn-secondary {
+        font-size: 14px;
+        background-color: #1e293b;
+        color: #cbd5e1;
+        font-weight: 500;
+        padding: 8px 16px;
+        border-radius: 8px;
+        }
+
+        .btn-secondary:hover {
+        background-color: #334155;
+        }
+
+        .btn-primary {
+        width: 100%;
+        background: linear-gradient(to right, var(--brand-primary), var(--brand-secondary));
+        color: #020617;
+        font-weight: 700;
+        font-size: 18px;
+        padding: 16px 32px;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.2);
+        }
+
+        .btn-primary:hover {
+        filter: brightness(1.1);
+        transform: translateY(-2px);
+        }
+
+        .btn-primary:active {
+        transform: translateY(0);
+        }
+
+        @media (min-width: 640px) {
+        .btn-primary { width: auto; }
+        }
+
+        /* ==========================================================================
+        Card de Simulação (Interface do Usuário)
+        ========================================================================== */
+        .preview-card {
+        width: 100%;
+        max-width: 384px;
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 24px;
+        padding: 24px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        }
+
+        .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #334155;
+        margin-bottom: 24px;
+        }
+
+        .card-header p {
+        font-size: 12px;
+        color: var(--text-muted);
+        }
+
+        .card-header h3 {
+        font-size: 18px;
+        font-weight: 700;
+        }
+
+        .status-badge {
+        font-size: 12px;
+        background-color: rgba(16, 185, 129, 0.1);
+        color: #34d399;
+        padding: 4px 8px;
+        border-radius: 4px;
+        }
+
+        .form-group {
+        margin-bottom: 16px;
+        }
+
+        .form-group label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+        }
+
+        .form-group input {
+        width: 100%;
+        background-color: var(--bg-input);
+        border: 1px solid #334155;
+        color: #fff;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+        outline: none;
+        border-color: var(--brand-primary);
+        }
+
+        .btn-card {
+        width: 100%;
+        background-color: #334155;
+        color: #fff;
+        font-weight: 500;
+        padding: 12px;
+        border-radius: 12px;
+        font-size: 14px;
+        }
+
+        .btn-card:hover {
+        background-color: #475569;
+        }
+
+        /* Status de Feedback do JS */
+        .result-box {
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 12px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 500;
+        }
+
+        .result-box.hidden {
+        display: none;
+        }
+
+        .result-success {
+        background-color: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        }
+
+        .result-error {
+        background-color: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        }
+
+        /* ==========================================================================
+        Footer
+        ========================================================================== */
+        footer {
+        width: 100%;
+        border-top: 1px solid rgba(51, 65, 85, 0.8);
+        padding: 24px 0;
+        text-align: center;
+        font-size: 12px;
+        color: #64748b;
+        }
+
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans antialiased min-h-screen flex flex-col justify-between">
+
+    <!-- Header / Navbar -->
+    <header class="w-full max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <span class="text-2xl">⚡</span>
+            <span class="font-bold text-xl tracking-tight bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">Frota</span>
+        </div>
+        <button onclick="lucroSimulado()" class="text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2 px-4 rounded-lg transition-all cursor-pointer">
+            Simular Economia
+        </button>
+    </header>
+
+    <!-- Conteúdo Principal (Hero Section) -->
+    <main class="w-full max-w-6xl mx-auto px-6 py-12 flex flex-col lg:flex-row items-center gap-12 my-auto">
+        
+        <!-- Lado Esquerdo: Textos e CTA -->
+        <div class="flex-1 text-center lg:text-left space-y-6">
+            <span class="inline-block bg-amber-500/10 text-amber-400 text-xs font-semibold tracking-wider uppercase px-3 py-1 rounded-full">
+                Simples • Direto • Eficiente
+            </span>
+            <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+                Controle sua rodagem, <br>
+                <span class="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">domine seus gastos.</span>
+            </h1>
+            <p class="text-base sm:text-lg text-slate-400 max-w-xl mx-auto lg:mx-0">
+                Registre a quilometragem diária e os abastecimentos do seu veículo em segundos. Tenha relatórios claros de consumo sem planilhas complexas.
+            </p>
+            
+            <!-- Botão de Acesso Principal (Interativo) -->
+            <div class="pt-4">
+                <button onclick="entrarNoApp()" class="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold text-lg py-4 px-8 rounded-xl shadow-lg shadow-orange-500/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer">
+                    Acessar Aplicação Web →
+                </button>
+            </div>
+        </div>
+
+        <!-- Lado Direito: Preview Card Interativo (Simula o App no Celular) -->
+        <div class="flex-1 w-full max-w-sm bg-slate-800/50 border border-slate-700/50 rounded-3xl p-6 shadow-2xl backdrop-blur-sm">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                <div>
+                    <p class="text-xs text-slate-400">Painel Diário</p>
+                    <h3 class="font-bold text-lg">Novo Registro</h3>
+                </div>
+                <span class="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded">Status: Ativo</span>
+            </div>
+
+            <!-- Formulário Simulado -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">KM Atual</label>
+                    <input id="sim-km" type="number" placeholder="Ex: 45210" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Litros Abastecidos</label>
+                    <input id="sim-litros" type="number" placeholder="Ex: 35" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 transition-all">
+                </div>
+                <button onclick="calcularMediaSimulada()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 rounded-xl text-sm transition-all cursor-pointer">
+                    Calcular Média Local
+                </button>
+                
+                <!-- Resultado do cálculo interativo -->
+                <div id="resultado-simulacao" class="hidden bg-slate-900/80 border border-amber-500/20 rounded-xl p-3 text-center text-sm text-amber-400 font-medium">
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="w-full border-t border-slate-800/80 py-6 text-center text-xs text-slate-500">
+        <p>&copy; 2026 Frota. Todos os direitos reservados.</p>
+    </footer>
+
+    <!-- JavaScript Interativo -->
+    <script>
+        // Função do botão principal de acesso
+        function entrarNoApp() {
+            //alert("Redirecionando você para a tela de login do painel de controle...");
+            // Aqui você inseriria a rota real, por exemplo:
+            window.location.href = '/login.html';
+        }
+
+        // Função do botão alternativo do header
+        function lucroSimulado() {
+            alert("Usuários do Frota reduzem até 15% dos custos de combustível apenas identificando anomalias na média de consumo diária!");
+        }
+
+        // Função de cálculo rápido na própria landing page
+        function calcularMediaSimulada() {
+            const km = document.getElementById('sim-km').value;
+            const litros = document.getElementById('sim-litros').value;
+            const boxResultado = document.getElementById('resultado-simulacao');
+
+            if (!km || !litros || litros <= 0) {
+                boxResultado.classList.remove('hidden');
+                boxResultado.className = "bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center text-sm text-red-400 font-medium";
+                boxResultado.innerText = "Por favor, preencha os dados corretamente.";
+                return;
+            }
+
+            // Simulação puramente visual para engajamento do usuário
+            boxResultado.classList.remove('hidden');
+            boxResultado.className = "bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center text-sm text-emerald-400 font-medium";
+            boxResultado.innerText = `Dados validados! No app real, seu consumo médio e histórico seriam gerados instantaneamente.`;
+        }
+    </script>
+</body>
+</html>
