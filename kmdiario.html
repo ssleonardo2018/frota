@@ -8,7 +8,10 @@
 </head>
 <body>
 
-<header class="topo">📋 KM Diário</header>
+<header class="topo">
+  📋 KM Diário
+  <div id="saudacaoMotorista" style="font-size:0.8rem; font-weight:400; margin-top:4px;"></div>
+</header>
 
 <main>
   <div id="mensagem" class="mensagem"></div>
@@ -64,12 +67,50 @@
   <div id="listaRegistros">
     <div class="carregando">Carregando registros...</div>
   </div>
+
+  <!-- Esta div só aparece na impressão devido ao CSS acima -->
+<div id="area-impressao">
+    
+    <!-- Cabeçalho solicitado -->
+    <div class="print-header">
+        <h2>Relatório de KM Diário</h2>
+        <div class="print-header-grid">
+            <div class="print-header-item">Motorista: <span id="print-motorista">Nome do Motorista</span></div>
+            <div class="print-header-item">Turno: <span id="print-turno">Diurno/Noturno</span></div>
+            <div class="print-header-item print-month-year">Mês/Ano: <span id="print-periodo">07/2026</span></div>
+        </div>
+    </div>
+
+    <!-- Tabela com bordas -->
+    <table class="print-table">
+        <thead>
+            <tr>
+                <th class="col-data">Data</th>
+                <th class="col-km-ini">KM Início</th>
+                <th class="col-km-fim">KM Final</th>
+                <th class="col-km-tot">KM Total</th>
+                <th class="col-placa">Placa</th>
+                <th class="col-rota">Rota</th>
+                <th class="col-obs">Observações</th>
+            </tr>
+        </thead>
+        <tbody id="print-table-body">
+            <!-- Os dias do mês serão gerados via JavaScript aqui dentro -->
+        </tbody>
+    </table>
+</div>
+
+
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script>
 const cliente = exigirConfiguracaoSupabase();
+const motorista = cliente ? exigirLogin() : null;
+if (motorista) {
+  document.getElementById('saudacaoMotorista').textContent = `Motorista: ${motorista.nome}`;
+}
 
 const form = document.getElementById('formKm');
 const campoData = document.getElementById('data');
@@ -111,7 +152,7 @@ function limparFormulario() {
 
 async function salvarRegistro(evento) {
   evento.preventDefault();
-  if (!cliente) return;
+  if (!cliente || !motorista) return;
 
   const kmInicio = parseFloat(campoKmInicio.value);
   const kmFinal = parseFloat(campoKmFinal.value);
@@ -128,7 +169,8 @@ async function salvarRegistro(evento) {
     km_total: kmFinal - kmInicio,
     placa: campoPlaca.value.toUpperCase().trim(),
     rota: campoRota.value.trim(),
-    observacoes: campoObs.value.trim()
+    observacoes: campoObs.value.trim(),
+    motorista_id: motorista.id
   };
 
   btnSalvar.disabled = true;
@@ -153,7 +195,7 @@ async function salvarRegistro(evento) {
 }
 
 async function carregarLista() {
-  if (!cliente) return;
+  if (!cliente || !motorista) return;
   const inicio = primeiroDiaMesAtual();
   const fim = ultimoDiaMesAtual();
   const container = document.getElementById('listaRegistros');
@@ -163,6 +205,7 @@ async function carregarLista() {
     const { data, error } = await cliente
       .from('kmdiario')
       .select('*')
+      .eq('motorista_id', motorista.id)
       .gte('data', inicio)
       .lte('data', fim)
       .order('data', { ascending: false });
@@ -233,7 +276,98 @@ async function excluirRegistro(id) {
 document.getElementById('btnImprimir').addEventListener('click', () => window.print());
 form.addEventListener('submit', salvarRegistro);
 
-if (cliente) carregarLista();
+if (cliente && motorista) carregarLista();
+
+
+
+
+  async function carregarEImprimirRelatorio(mes, ano) {
+      try {
+          // 1. Define o intervalo de busca (Formato ISO)
+          const primeiroDia = `${ano}-${String(mes).padStart(2, '0')}-01`;
+          const ultimoDia = `${ano}-${String(mes).padStart(2, '0')}-${new Date(ano, mes, 0).getDate()}`;
+
+          // 2. Consulta no Supabase trazendo a tabela relacionada
+          const { data: registrosBanco, error } = await supabase
+              .from('kmdiario') 
+              .select(`
+                  *,
+                  motoristas (
+                      nome,
+                      turno
+                  )
+              `) 
+              .gte('data', primeiroDia)
+              .lte('data', ultimoDia);
+
+          if (error) throw error;
+
+          // 3. Alimenta o período do cabeçalho
+          document.getElementById('print-periodo').innerText = `${String(mes).padStart(2, '0')}/${ano}`;
+          
+          // CORREÇÃO DOS CAMPOS DO MOTORISTA (Acessando o objeto aninhado corretamente)
+          // O uso do '?' evita que o código trave caso registrosBanco esteja vazio
+          const primeiroRegistro = registrosBanco && registrosBanco.length > 0 ? registrosBanco[0] : null;
+          
+          document.getElementById('print-motorista').innerText = primeiroRegistro?.motoristas?.nome || "Não Informado";
+          document.getElementById('print-turno').innerText = primeiroRegistro?.motoristas?.turno || "Não Informado";
+
+          // 4. Montagem da tabela completa incluindo dias vazios
+          const totalDiasMes = new Date(ano, mes, 0).getDate();
+          const tbody = document.getElementById('print-table-body');
+          tbody.innerHTML = ''; 
+
+          for (let dia = 1; dia <= totalDiasMes; dia++) {
+              const diaStr = String(dia).padStart(2, '0');
+              const mesStr = String(mes).padStart(2, '0');
+              
+              const dataISO = `${ano}-${mesStr}-${diaStr}`;
+              const dataPTBR = `${diaStr}/${mesStr}/${ano}`;
+
+              // Procura o registro comparando os dois formatos possíveis de banco
+              const registroDoDia = registrosBanco.find(item => item.data === dataISO || item.data === dataPTBR) || {};
+
+              // Realiza o cálculo matemático do KM total se ele não vier pronto do banco
+              let kmTotalExibir = registroDoDia.km_total;
+              if (!kmTotalExibir && registroDoDia.km_final && registroDoDia.km_inicio) {
+                  kmTotalExibir = registroDoDia.km_final - registroDoDia.km_inicio;
+              }
+
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                  <td>${diaStr}/${mesStr}</td>
+                  <td>${registroDoDia.km_inicio ?? ''}</td>
+                  <td>${registroDoDia.km_final ?? ''}</td>
+                  <td>${kmTotalExibir ?? ''}</td>
+                  <td>${registroDoDia.placa ?? ''}</td>
+                  <td>${registroDoDia.rota ?? ''}</td>
+                  <td>${registroDoDia.observacoes ?? ''}</td>
+              `;
+              tbody.appendChild(tr);
+          }
+
+          // 5. Aciona a janela de impressão
+          window.print();
+
+      } catch (err) {
+          console.error('Erro ao buscar dados do Supabase:', err);
+          alert('Não foi possível carregar os dados para a impressão.');
+      }
+  }
+
+    // Vincula a função ao clique do seu botão Imprimir atual
+    document.querySelector('.btn-imprimir').addEventListener('click', () => {
+        // Exemplo de chamada: Passe o mês atual, ano atual e a lista de registros guardados
+        const mesAtual = new Date().getMonth() + 1;
+        const anoAtual = new Date().getFullYear();
+        const seusDadosDoBanco = []; // Substitua pela sua variável que carrega os dados
+        
+        prepararEImprimir(mesAtual, anoAtual, seusDadosDoBanco);
+    });
+
+
+
+
 </script>
 
 </body>

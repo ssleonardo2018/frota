@@ -22,6 +22,10 @@
     <div class="campo">
       <label for="supabaseUrl">Supabase URL</label>
       <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+      <small style="display:block;margin-top:6px;color:var(--texto-suave);font-size:0.78rem;">
+        Cole apenas a <strong>Project URL</strong> (termina em <code>.supabase.co</code>).
+        Não inclua <code>/rest/v1</code> nem barra no final — o app adiciona isso sozinho.
+      </small>
     </div>
 
     <div class="campo">
@@ -31,8 +35,16 @@
 
     <div class="acoes-form">
       <button type="button" class="btn btn-sucesso" id="btnSalvar">💾 Salvar conexão</button>
-      <a href="menu.html" class="btn btn-neutro">🏠 Menu</a>
+      <a href="login.html" class="btn btn-neutro">🔑 Ir para o login</a>
     </div>
+  </div>
+
+  <div class="formulario">
+    <p style="font-size:0.85rem;color:var(--texto-suave);margin-top:0;">
+      Use esta opção apenas se precisar trocar de projeto Supabase neste
+      dispositivo. Isso também encerra a sessão do motorista logado.
+    </p>
+    <button type="button" class="btn btn-perigo" id="btnDesconectar" style="width:100%;">🔌 Desconectar deste projeto</button>
   </div>
 </main>
 
@@ -53,18 +65,36 @@ function mostrarMensagem(texto, tipo) {
 }
 
 document.getElementById('btnSalvar').addEventListener('click', () => {
-  const url = campoUrl.value.trim();
+  const urlDigitada = campoUrl.value.trim();
   const key = campoKey.value.trim();
 
-  if (!url || !key) {
+  if (!urlDigitada || !key) {
     mostrarMensagem('Preencha a URL e a chave do Supabase.', 'erro');
+    return;
+  }
+
+  const url = normalizarUrlSupabase(urlDigitada);
+
+  if (!/^https:\/\/.+\.supabase\.co$/.test(url)) {
+    mostrarMensagem('URL inválida. Use o formato https://xxxxx.supabase.co (sem /rest/v1 ou barra no final).', 'erro');
     return;
   }
 
   localStorage.setItem('supabase_url', url);
   localStorage.setItem('supabase_key', key);
+  campoUrl.value = url;
   mostrarMensagem('Conexão salva com sucesso!', 'sucesso');
-  setTimeout(() => { window.location.href = 'menu.html'; }, 1000);
+  setTimeout(() => { window.location.href = 'login.html'; }, 1000);
+});
+
+document.getElementById('btnDesconectar').addEventListener('click', () => {
+  if (!confirm('Isso vai desconectar este dispositivo do projeto Supabase atual e encerrar a sessão do motorista. Deseja continuar?')) return;
+  localStorage.removeItem('supabase_url');
+  localStorage.removeItem('supabase_key');
+  localStorage.removeItem('motorista_logado');
+  campoUrl.value = '';
+  campoKey.value = '';
+  mostrarMensagem('Desconectado. Configure um novo projeto Supabase abaixo.', 'sucesso');
 });
 </script>
 

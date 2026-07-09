@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Login</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topo">🚗 Controle de KM</header>
+
+<main>
+  <div id="mensagem" class="mensagem"></div>
+
+  <form class="formulario" id="formLogin" style="margin-top: 40px;">
+    <p style="text-align:center; font-weight:600; margin-top:0; margin-bottom:20px;">
+      Entre com seu usuário e senha
+    </p>
+
+    <div class="campo">
+      <label for="login">Usuário</label>
+      <input type="text" id="login" autocomplete="username" required>
+    </div>
+
+    <div class="campo">
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" autocomplete="current-password" required>
+    </div>
+
+    <div class="acoes-form" style="grid-template-columns: 1fr;">
+      <button type="submit" class="btn btn-primario" id="btnEntrar">🔑 Entrar</button>
+    </div>
+  </form>
+
+  <div style="text-align:center; margin-top:16px;">
+    <a href="configuracoes.html" style="color:var(--texto-suave); font-size:0.85rem;">⚙️ Configurar conexão com o Supabase</a>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+const cliente = exigirConfiguracaoSupabase();
+
+// Se já existe um motorista logado, vai direto para o menu
+if (cliente && getMotoristaLogado()) {
+  window.location.href = 'menu.html';
+}
+
+const form = document.getElementById('formLogin');
+const campoLogin = document.getElementById('login');
+const campoSenha = document.getElementById('senha');
+const btnEntrar = document.getElementById('btnEntrar');
+
+function mostrarMensagem(texto, tipo) {
+  const el = document.getElementById('mensagem');
+  el.textContent = texto;
+  el.className = `mensagem ${tipo}`;
+}
+
+form.addEventListener('submit', async (evento) => {
+  evento.preventDefault();
+  if (!cliente) return;
+
+  btnEntrar.disabled = true;
+  btnEntrar.textContent = 'Entrando...';
+
+  try {
+    const { data, error } = await cliente.rpc('autenticar_motorista', {
+      p_login: campoLogin.value.trim(),
+      p_senha: campoSenha.value
+    });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      mostrarMensagem('Usuário ou senha inválidos.', 'erro');
+      return;
+    }
+
+    salvarMotoristaLogado(data[0]);
+    window.location.href = 'menu.html';
+  } catch (e) {
+    console.error(e);
+    mostrarMensagem('Erro ao entrar: ' + e.message, 'erro');
+  } finally {
+    btnEntrar.disabled = false;
+    btnEntrar.textContent = '🔑 Entrar';
+  }
+});
+</script>
+
+</body>
+</html>

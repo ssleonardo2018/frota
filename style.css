@@ -49,6 +49,12 @@ main {
   margin-bottom: 20px;
 }
 
+/* --- COMPORTAMENTO PADRÃO (TELA DO COMPUTADOR/CELULAR) --- */
+/* Isso garante que o relatório suma completamente do final da página do site */
+#area-impressao {
+    display: none !important;
+}
+
 @media (min-width: 480px) {
   .resumo-grid { grid-template-columns: 1fr 1fr; }
 }
@@ -331,8 +337,95 @@ main {
   object-fit: cover;
 }
 
-/* Impressão: esconde tudo que não é o formulário preenchido */
+/* --- CONFIGURAÇÃO EXCLUSIVA PARA IMPRESSÃO --- */
 @media print {
-  header.topo, .acoes-form, .lista-titulo, .lista-registro .acoes-registro, .mensagem { display: none !important; }
-  body { background: var(--branco); }
+    /* Define o tamanho da página como A4 e zera margens do navegador */
+    @page {
+        size: A4 portrait;
+        margin: 15mm 10mm 15mm 10mm;
+    }
+
+    /* Oculta elementos desnecessários na folha (botões, menus, etc) */
+    body * {
+        visibility: hidden;
+    }
+    
+  
+
+    /* Torna visível apenas a área do relatório de impressão */
+    #area-impressao, #area-impressao * {
+        visibility: visible;
+    }
+    
+    #area-impressao {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        font-family: Arial, sans-serif;
+        color: #000;
+        font-size: 11pt;
+    }
+
+    /* Cabeçalho do Relatório */
+    .print-header {
+        margin-bottom: 20px;
+        padding-bottom: 5px;
+        border-bottom: 2px solid #000;
+    }
+    .print-header h2 {
+        text-align: center;
+        margin: 0 0 15px 0;
+        font-size: 16pt;
+    }
+    .print-header-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    .print-header-item {
+        font-weight: bold;
+    }
+    .print-header-item span {
+        font-weight: normal;
+    }
+    .print-month-year {
+        grid-column: span 2;
+        margin-top: 5px;
+        border-top: 1px dashed #ccc;
+        padding-top: 5px;
+    }
+
+    /* Tabela Formatada para A4 */
+    .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed; /* Força o respeito às larguras das colunas */
+        margin-top: 10px;
+    }
+    
+    .print-table th, .print-table td {
+        border: 1px solid #000 !important; /* Força a exibição das bordas */
+        padding: 5px 3px;
+        text-align: center;
+        font-size: 9pt;
+        word-wrap: break-word; /* Evita que o texto quebre o layout */
+    }
+    
+    .print-table th {
+        background-color: #f0f0f0 !important;
+        -webkit-print-color-adjust: exact; /* Força cor de fundo no Chrome/Edge */
+        print-color-adjust: exact;
+        font-weight: bold;
+    }
+
+    /* Definição de larguras das colunas para caber perfeitamente no A4 */
+    .col-data { width: 8%; }
+    .col-km-ini { width: 12%; }
+    .col-km-fim { width: 12%; }
+    .col-km-tot { width: 12%; }
+    .col-placa { width: 10%; }
+    .col-rota { width: 23%; }
+    .col-obs { width: 23%; }
 }

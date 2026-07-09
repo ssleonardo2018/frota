@@ -7,9 +7,22 @@
 
 function getSupabaseCredenciais() {
   return {
-    url: localStorage.getItem('supabase_url') || '',
+    url: normalizarUrlSupabase(localStorage.getItem('supabase_url') || ''),
     key: localStorage.getItem('supabase_key') || ''
   };
+}
+
+// Aceita que o usuário cole a URL com /rest/v1, barra no final, etc.
+// e devolve sempre só "https://xxxx.supabase.co", que é o formato
+// que o supabase-js espera (ele mesmo adiciona /rest/v1 depois).
+function normalizarUrlSupabase(urlBruta) {
+  if (!urlBruta) return '';
+  try {
+    const u = new URL(urlBruta.trim());
+    return `${u.protocol}//${u.host}`;
+  } catch (e) {
+    return urlBruta.trim().replace(/\/+$/, '');
+  }
 }
 
 function criarClienteSupabase() {
@@ -30,6 +43,40 @@ function exigirConfiguracaoSupabase() {
     return null;
   }
   return criarClienteSupabase();
+}
+
+// ============================================================
+// Sessão do motorista logado (guardada no localStorage após o
+// login validar usuário/senha na tabela motoristas do Supabase)
+// ============================================================
+
+function getMotoristaLogado() {
+  const bruto = localStorage.getItem('motorista_logado');
+  if (!bruto) return null;
+  try {
+    return JSON.parse(bruto);
+  } catch (e) {
+    return null;
+  }
+}
+
+function salvarMotoristaLogado(motorista) {
+  localStorage.setItem('motorista_logado', JSON.stringify(motorista));
+}
+
+function encerrarSessaoMotorista() {
+  localStorage.removeItem('motorista_logado');
+}
+
+// Garante que existe um motorista logado antes de usar a página.
+// Se não existir, manda para a tela de login.
+function exigirLogin() {
+  const motorista = getMotoristaLogado();
+  if (!motorista) {
+    window.location.href = 'login.html';
+    return null;
+  }
+  return motorista;
 }
 
 // Helpers de data (mês atual em formato YYYY-MM-DD)

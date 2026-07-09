@@ -8,7 +8,10 @@
 </head>
 <body>
 
-<header class="topo">⛽ Abastecimento</header>
+<header class="topo">
+  ⛽ Abastecimento
+  <div id="saudacaoMotorista" style="font-size:0.8rem; font-weight:400; margin-top:4px;"></div>
+</header>
 
 <main>
   <div id="mensagem" class="mensagem"></div>
@@ -27,7 +30,7 @@
       </div>
       <div class="campo">
         <label for="motorista">Motorista</label>
-        <input type="text" id="motorista" placeholder="Nome do motorista" required>
+        <input type="text" id="motorista" readonly>
       </div>
     </div>
 
@@ -98,6 +101,7 @@
 const NOME_BUCKET = 'abastecimento-imagens';
 
 const cliente = exigirConfiguracaoSupabase();
+const motorista = cliente ? exigirLogin() : null;
 
 const form = document.getElementById('formAbast');
 const campoData = document.getElementById('data');
@@ -116,8 +120,11 @@ const camposImagem = [1, 2, 3, 4].map(n => ({
 }));
 
 campoData.value = new Date().toISOString().slice(0, 10);
+if (motorista) {
+  campoMotorista.value = motorista.nome;
+  document.getElementById('saudacaoMotorista').textContent = `Motorista: ${motorista.nome}`;
+}
 
-// Pré-visualização ao escolher um arquivo
 camposImagem.forEach(({ input, preview }) => {
   input.addEventListener('change', () => {
     const arquivo = input.files[0];
@@ -141,6 +148,7 @@ function limparFormulario() {
   form.reset();
   campoId.value = '';
   campoData.value = new Date().toISOString().slice(0, 10);
+  if (motorista) campoMotorista.value = motorista.nome;
   camposImagem.forEach(({ preview, hiddenUrl }) => {
     preview.innerHTML = '<span class="placeholder">📷</span>';
     hiddenUrl.value = '';
@@ -166,7 +174,7 @@ async function enviarImagem(arquivo) {
 
 async function salvarRegistro(evento) {
   evento.preventDefault();
-  if (!cliente) return;
+  if (!cliente || !motorista) return;
 
   btnSalvar.disabled = true;
   btnSalvar.textContent = 'Salvando...';
@@ -185,7 +193,8 @@ async function salvarRegistro(evento) {
 
     const registro = {
       data: campoData.value,
-      motorista: campoMotorista.value.trim(),
+      motorista: motorista.nome,
+      motorista_id: motorista.id,
       placa: campoPlaca.value.toUpperCase().trim(),
       carro: campoCarro.value.trim(),
       diesel: parseFloat(campoDiesel.value),
@@ -217,7 +226,7 @@ async function salvarRegistro(evento) {
 }
 
 async function carregarLista() {
-  if (!cliente) return;
+  if (!cliente || !motorista) return;
   const inicio = primeiroDiaMesAtual();
   const fim = ultimoDiaMesAtual();
   const container = document.getElementById('listaRegistros');
@@ -227,6 +236,7 @@ async function carregarLista() {
     const { data, error } = await cliente
       .from('abastecimento')
       .select('*')
+      .eq('motorista_id', motorista.id)
       .gte('data', inicio)
       .lte('data', fim)
       .order('data', { ascending: false });
@@ -315,7 +325,7 @@ async function excluirRegistro(id) {
 document.getElementById('btnImprimir').addEventListener('click', () => window.print());
 form.addEventListener('submit', salvarRegistro);
 
-if (cliente) carregarLista();
+if (cliente && motorista) carregarLista();
 </script>
 
 </body>
