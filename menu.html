@@ -72,12 +72,12 @@ async function carregarResumo() {
   try {
     const { data: registrosAbast, error: erroAbast } = await cliente
       .from('abastecimento')
-      .select('litros')
+      .select('diesel')
       .gte('data', inicio)
       .lte('data', fim);
 
     if (erroAbast) throw erroAbast;
-    const somaLitros = (registrosAbast || []).reduce((acc, r) => acc + Number(r.litros || 0), 0);
+    const somaLitros = (registrosAbast || []).reduce((acc, r) => acc + Number(r.diesel || 0), 0);
     document.getElementById('litrosTotalMes').innerHTML = `${formatarNumero(somaLitros, 1)} <small>L</small>`;
     document.getElementById('qtdAbastecimentos').textContent = (registrosAbast || []).length;
   } catch (e) {
